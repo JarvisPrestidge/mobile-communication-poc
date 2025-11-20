@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var deepLinkHandler: DeepLinkHandler
+    private lateinit var backendClient: BackendClient
 
     companion object {
         private const val TAG = "MainActivity"
@@ -23,6 +24,10 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize DeepLinkHandler
         deepLinkHandler = DeepLinkHandler(this)
+
+        // Initialize BackendClient for Pattern C (HTTP + WebSocket)
+        backendClient = BackendClient(this)
+        backendClient.connectWebSocket()
 
         // Create and configure WebView
         webView = WebView(this).apply {
@@ -56,7 +61,6 @@ class MainActivity : AppCompatActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
 
             // Allow mixed content (HTTP on localhost during development)
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
@@ -95,7 +99,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        backendClient.cleanup()
         webView.destroy()
         Log.d(TAG, "MainActivity destroyed")
     }
+
+    /**
+     * Expose backendClient for AndroidBridge to check connection status
+     */
+    fun getBackendClient(): BackendClient = backendClient
 }

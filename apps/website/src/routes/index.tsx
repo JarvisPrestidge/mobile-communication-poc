@@ -11,10 +11,22 @@ export const Route = createFileRoute("/")({
 });
 
 // TypeScript declaration for Android Bridge
+declare global {
+    interface Window {
+        AndroidBridge?: {
+            showToast: (message: string) => void;
+            showMessage: (title: string, message: string) => void;
+            performAction: (actionName: string, payload: string) => void;
+            getDeviceInfo: () => string;
+            logToNative: (message: string) => void;
+        };
+    }
+}
 
 function HomePage() {
     const [isAndroid, setIsAndroid] = useState(false);
     const [deviceInfo, setDeviceInfo] = useState<Record<string, unknown> | null>(null);
+    const [backendResponse, setBackendResponse] = useState<string | null>(null);
 
     useEffect(() => {
         // Detect Android WebView
@@ -38,7 +50,7 @@ function HomePage() {
         }
     }, []);
 
-    // Pattern A: JavaScript Interface handlers
+    // JavaScript Interface Bridge handlers
     const handleShowToast = () => {
         if (window.AndroidBridge) {
             window.AndroidBridge.showToast("Hello from WebView!");
@@ -51,7 +63,7 @@ function HomePage() {
     const handleShowDialog = () => {
         if (window.AndroidBridge) {
             window.AndroidBridge.showMessage(
-                "Pattern A Demo",
+                "JavaScript Bridge Demo",
                 "This is a native Android dialog triggered from JavaScript!"
             );
             window.AndroidBridge.logToNative("showMessage button clicked");
@@ -74,7 +86,7 @@ function HomePage() {
         }
     };
 
-    // Pattern B: Deep Link handlers
+    // Deep Link handlers
     const handleNavigateDeepLink = () => {
         window.location.href = "myapp://navigate?screen=settings";
     };
@@ -91,12 +103,51 @@ function HomePage() {
         window.location.href = "myapp://showDialog?title=Deep Link Test&message=Hello from deep link!";
     };
 
+    // HTTP + WebSocket handler
+    const handleSendToBackend = async () => {
+        try {
+            setBackendResponse("Sending to backend...");
+
+            const response = await fetch("http://10.0.2.2:3001/api/card/design", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    cardData: {
+                        cardNumber: "**** **** **** 1234",
+                        cardholderName: "John Doe",
+                        expiryDate: "12/25",
+                        cvv: "***",
+                        designColor: "blue",
+                        timestamp: new Date().toISOString(),
+                    },
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setBackendResponse(JSON.stringify(data, null, 2));
+            toast.success(`Backend processed design! Notified ${data.notifiedClients} native clients.`);
+
+            window.AndroidBridge?.logToNative(`Backend response: ${JSON.stringify(data)}`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            setBackendResponse(`Error: ${errorMessage}`);
+            toast.error(`Backend error: ${errorMessage}`);
+            console.error("Backend request failed:", error);
+        }
+    };
+
     return (
         <div className="container mx-auto min-h-svh p-6">
             <div className="mb-8">
                 <h1 className="mb-2 font-bold text-4xl">WebView Communication Demo</h1>
                 <p className="text-muted-foreground">
-                    Demonstrating Pattern A (JavaScript Bridge) and Pattern B (Deep Links)
+                    Demonstrating three patterns: JavaScript Interface Bridge, Deep Linking, and HTTP + WebSocket
                 </p>
             </div>
 
@@ -140,10 +191,10 @@ function HomePage() {
                 </Card>
             )}
 
-            {/* Pattern A: JavaScript Interface */}
+            {/* JavaScript Interface Bridge */}
             <Card className="mb-6">
                 <CardHeader>
-                    <CardTitle>Pattern A: JavaScript Interface Bridge</CardTitle>
+                    <CardTitle>JavaScript Interface Bridge</CardTitle>
                     <CardDescription>
                         Direct method invocation from JavaScript to native Android code via window.AndroidBridge
                     </CardDescription>
@@ -173,10 +224,10 @@ function HomePage() {
                 </CardContent>
             </Card>
 
-            {/* Pattern B: Deep Links */}
+            {/* Deep Linking */}
             <Card className="mb-6">
                 <CardHeader>
-                    <CardTitle>Pattern B: Deep Linking</CardTitle>
+                    <CardTitle>Deep Linking</CardTitle>
                     <CardDescription>
                         Navigation via custom URI schemes (myapp://) intercepted by native Android
                     </CardDescription>
@@ -219,6 +270,33 @@ function HomePage() {
                 </CardContent>
             </Card>
 
+            {/* HTTP + WebSocket Communication */}
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>HTTP + WebSocket Communication</CardTitle>
+                    <CardDescription>
+                        WebView sends HTTP request to backend, backend processes and notifies native app via WebSocket
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                    <Button className="w-full" onClick={handleSendToBackend} variant="outline">
+                        Send Card Design to Backend
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Flow: WebView → POST /api/card/design → Backend processes → WebSocket notification to native app
+                    </p>
+
+                    {backendResponse && (
+                        <div className="mt-3">
+                            <p className="mb-1 font-medium text-sm">Backend Response:</p>
+                            <pre className="overflow-x-auto rounded-md border bg-muted p-2 text-xs">
+                                {backendResponse}
+                            </pre>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Instructions */}
             <Card>
                 <CardHeader>
@@ -226,15 +304,20 @@ function HomePage() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                     <p>
-                        <strong>Pattern A (JS Bridge):</strong> Buttons call native methods directly through
+                        <strong>JavaScript Interface Bridge:</strong> Buttons call native methods directly through
                         window.AndroidBridge. Watch for Toast messages and Dialogs.
                     </p>
                     <p>
-                        <strong>Pattern B (Deep Links):</strong> Buttons navigate to custom myapp:// URLs, intercepted
-                        by native shouldOverrideUrlLoading handler.
+                        <strong>Deep Linking:</strong> Buttons navigate to custom myapp:// URLs, intercepted by native
+                        shouldOverrideUrlLoading handler.
+                    </p>
+                    <p>
+                        <strong>HTTP + WebSocket:</strong> WebView sends HTTP request to backend, which then notifies
+                        the native app via WebSocket. Check native app for dialog notification.
                     </p>
                     <p className="text-muted-foreground">
-                        Open Android Studio logcat with filter "MainActivity" or "AndroidBridge" to see detailed logs.
+                        Open Android Studio logcat with filter "MainActivity", "AndroidBridge", or "BackendClient" to
+                        see detailed logs.
                     </p>
                 </CardContent>
             </Card>
