@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { createBunWebSocket } from "hono/bun";
 import { cors } from "hono/cors";
+import type { WSContext } from "hono/ws";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 
 const app = new Hono();
 
 // Store connected WebSocket clients
-const connectedClients = new Set<any>();
+const connectedClients = new Set<WSContext<unknown>>();
 
 // Enable CORS for the web app
 app.use(
@@ -32,7 +33,7 @@ app.get("/api/health", (c) =>
 // WebSocket endpoint for native app connections
 app.get(
     "/ws",
-    upgradeWebSocket((c) => {
+    upgradeWebSocket((_c) => {
         console.log("WebSocket upgrade request received");
 
         return {
@@ -81,7 +82,7 @@ app.get(
                 }
             },
 
-            onClose() {
+            onClose(_event, ws) {
                 console.log("WebSocket connection closed");
                 connectedClients.delete(ws);
                 console.log(`Connected clients: ${connectedClients.size}`);
@@ -125,7 +126,7 @@ app.post("/api/card/design", async (c) => {
         for (const client of connectedClients) {
             try {
                 client.send(notificationMessage);
-                notifiedCount++;
+                notifiedCount += 1;
             } catch (error) {
                 console.error("Error sending to client:", error);
                 connectedClients.delete(client);

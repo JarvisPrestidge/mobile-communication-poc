@@ -10,19 +10,6 @@ export const Route = createFileRoute("/")({
     component: HomePage,
 });
 
-// TypeScript declaration for Android Bridge
-declare global {
-    interface Window {
-        AndroidBridge?: {
-            showToast: (message: string) => void;
-            showMessage: (title: string, message: string) => void;
-            performAction: (actionName: string, payload: string) => void;
-            getDeviceInfo: () => string;
-            logToNative: (message: string) => void;
-        };
-    }
-}
-
 function HomePage() {
     const [isAndroid, setIsAndroid] = useState(false);
     const [deviceInfo, setDeviceInfo] = useState<Record<string, unknown> | null>(null);
