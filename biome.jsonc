@@ -1,0 +1,54 @@
+{
+    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+    "extends": ["ultracite/core", "ultracite/react", "ultracite/remix"],
+    "files": {
+        "includes": [
+            "**/*.{js,jsx,ts,tsx,json,css,md,mdx}",
+            "!apps/website/src/routeTree.gen.ts"
+        ]
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 120
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "double"
+        }
+    },
+    "json": {
+        "formatter": {
+            "enabled": true,
+            "indentStyle": "space",
+            "indentWidth": 4
+        },
+        "parser": {
+            "allowComments": true
+        }
+    },
+    "linter": {
+        "rules": {
+            "style": {
+                "useNamingConvention": "off",
+                "noHeadElement": "off"
+            }
+        }
+    },
+    "overrides": [
+        {
+            "includes": [".claude/**"],
+            "linter": {
+                "rules": {
+                    "suspicious": {
+                        "noConsole": "off"
+                    },
+                    "correctness": {
+                        "noUndeclaredVariables": "off"
+                    }
+                }
+            }
+        }
+    ]
+}
