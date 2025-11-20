@@ -1,45 +1,253 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 
 export const Route = createFileRoute("/")({
     component: HomePage,
 });
 
+// TypeScript declaration for Android Bridge
+declare global {
+    interface Window {
+        AndroidBridge?: {
+            showToast: (message: string) => void;
+            showMessage: (title: string, message: string) => void;
+            performAction: (actionName: string, payload: string) => void;
+            getDeviceInfo: () => string;
+            logToNative: (message: string) => void;
+        };
+    }
+}
+
 function HomePage() {
+    const [isAndroid, setIsAndroid] = useState(false);
+    const [deviceInfo, setDeviceInfo] = useState<Record<string, unknown> | null>(null);
+
+    useEffect(() => {
+        // Detect Android WebView
+        const hasAndroidBridge = typeof window.AndroidBridge !== "undefined";
+        setIsAndroid(hasAndroidBridge);
+
+        if (hasAndroidBridge) {
+            // Log to native on page load
+            window.AndroidBridge?.logToNative("WebView page loaded successfully");
+
+            // Get device info
+            try {
+                const infoJson = window.AndroidBridge?.getDeviceInfo();
+                if (infoJson) {
+                    const info = JSON.parse(infoJson);
+                    setDeviceInfo(info);
+                }
+            } catch (error) {
+                console.error("Failed to get device info:", error);
+            }
+        }
+    }, []);
+
+    // Pattern A: JavaScript Interface handlers
+    const handleShowToast = () => {
+        if (window.AndroidBridge) {
+            window.AndroidBridge.showToast("Hello from WebView!");
+            window.AndroidBridge.logToNative("showToast button clicked");
+        } else {
+            alert("AndroidBridge not available (not running in WebView)");
+        }
+    };
+
+    const handleShowDialog = () => {
+        if (window.AndroidBridge) {
+            window.AndroidBridge.showMessage(
+                "Pattern A Demo",
+                "This is a native Android dialog triggered from JavaScript!"
+            );
+            window.AndroidBridge.logToNative("showMessage button clicked");
+        } else {
+            alert("AndroidBridge not available (not running in WebView)");
+        }
+    };
+
+    const handlePerformAction = () => {
+        if (window.AndroidBridge) {
+            const payload = JSON.stringify({
+                cardId: "12345",
+                cardName: "Premium Card",
+                timestamp: new Date().toISOString(),
+            });
+            window.AndroidBridge.performAction("shareCard", payload);
+            window.AndroidBridge.logToNative(`performAction called with payload: ${payload}`);
+        } else {
+            alert("AndroidBridge not available (not running in WebView)");
+        }
+    };
+
+    // Pattern B: Deep Link handlers
+    const handleNavigateDeepLink = () => {
+        window.location.href = "myapp://navigate?screen=settings";
+    };
+
+    const handleOpenCardDeepLink = () => {
+        window.location.href = "myapp://openCard?cardId=67890";
+    };
+
+    const handleCallNativeDeepLink = () => {
+        window.location.href = "myapp://callNative?method=shareCard&data=testValue";
+    };
+
+    const handleCustomDialogDeepLink = () => {
+        window.location.href = "myapp://showDialog?title=Deep Link Test&message=Hello from deep link!";
+    };
+
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-10 p-2">
-            <div className="flex flex-col items-center gap-4">
-                <h1 className="font-bold text-3xl sm:text-4xl">React TanStarter</h1>
-                <div className="flex items-center gap-2 text-foreground/80 text-sm max-sm:flex-col">
-                    This is an unprotected page:
-                    <pre className="rounded-md border bg-card p-1 text-card-foreground">routes/index.tsx</pre>
-                </div>
+        <div className="container mx-auto min-h-svh p-6">
+            <div className="mb-8">
+                <h1 className="mb-2 font-bold text-4xl">WebView Communication Demo</h1>
+                <p className="text-muted-foreground">
+                    Demonstrating Pattern A (JavaScript Bridge) and Pattern B (Deep Links)
+                </p>
             </div>
 
-            <div className="flex flex-col items-center gap-2">
-                <p className="text-foreground/80 max-sm:text-xs">
-                    A minimal starter template for{" "}
-                    <a
-                        className="group text-foreground"
-                        href="https://tanstack.com/start/latest"
-                        rel="noreferrer noopener"
-                        target="_blank"
-                    >
-                        🏝️ <span className="group-hover:underline">TanStack Start</span>
-                    </a>
-                    .
-                </p>
-                <div className="flex items-center gap-3">
-                    <a
-                        className="text-foreground/80 underline hover:text-foreground max-sm:text-sm"
-                        href="https://github.com/dotnize/react-tanstarter"
-                        rel="noreferrer noopener"
-                        target="_blank"
-                        title="Template repository on GitHub"
-                    >
-                        dotnize/react-tanstarter
-                    </a>
-                </div>
-            </div>
+            {/* Platform Detection */}
+            <Alert className="mb-6">
+                <AlertTitle>Platform Status</AlertTitle>
+                <AlertDescription className="flex items-center gap-2">
+                    {isAndroid ? (
+                        <>
+                            <Badge className="bg-green-600" variant="default">
+                                Android WebView
+                            </Badge>
+                            <span>Running in native Android WebView</span>
+                        </>
+                    ) : (
+                        <>
+                            <Badge variant="secondary">Browser</Badge>
+                            <span>Running in web browser (some features unavailable)</span>
+                        </>
+                    )}
+                </AlertDescription>
+            </Alert>
+
+            {/* Device Info */}
+            {deviceInfo && (
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle>Device Information</CardTitle>
+                        <CardDescription>Retrieved via AndroidBridge.getDeviceInfo()</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <dl className="grid grid-cols-2 gap-2 text-sm">
+                            {Object.entries(deviceInfo).map(([key, value]) => (
+                                <div className="flex flex-col" key={key}>
+                                    <dt className="font-medium text-muted-foreground">{key}</dt>
+                                    <dd className="font-mono">{String(value)}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Pattern A: JavaScript Interface */}
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>Pattern A: JavaScript Interface Bridge</CardTitle>
+                    <CardDescription>
+                        Direct method invocation from JavaScript to native Android code via window.AndroidBridge
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                    <Button className="w-full" onClick={handleShowToast} variant="default">
+                        Show Toast
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Calls: <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.showToast()</code>
+                    </p>
+
+                    <Button className="w-full" onClick={handleShowDialog} variant="default">
+                        Show Dialog
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Calls: <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.showMessage()</code>
+                    </p>
+
+                    <Button className="w-full" onClick={handlePerformAction} variant="default">
+                        Perform Action (Share Card)
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Calls:{" "}
+                        <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.performAction()</code>
+                    </p>
+                </CardContent>
+            </Card>
+
+            {/* Pattern B: Deep Links */}
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>Pattern B: Deep Linking</CardTitle>
+                    <CardDescription>
+                        Navigation via custom URI schemes (myapp://) intercepted by native Android
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                    <Button className="w-full" onClick={handleNavigateDeepLink} variant="secondary">
+                        Navigate to Settings
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Deep Link:{" "}
+                        <code className="rounded bg-muted px-1 py-0.5">myapp://navigate?screen=settings</code>
+                    </p>
+
+                    <Button className="w-full" onClick={handleOpenCardDeepLink} variant="secondary">
+                        Open Card #67890
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Deep Link: <code className="rounded bg-muted px-1 py-0.5">myapp://openCard?cardId=67890</code>
+                    </p>
+
+                    <Button className="w-full" onClick={handleCallNativeDeepLink} variant="secondary">
+                        Call Native Method
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Deep Link:{" "}
+                        <code className="rounded bg-muted px-1 py-0.5">
+                            myapp://callNative?method=shareCard&data=testValue
+                        </code>
+                    </p>
+
+                    <Button className="w-full" onClick={handleCustomDialogDeepLink} variant="secondary">
+                        Show Custom Dialog
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Deep Link:{" "}
+                        <code className="rounded bg-muted px-1 py-0.5">
+                            myapp://showDialog?title=Deep Link Test&message=...
+                        </code>
+                    </p>
+                </CardContent>
+            </Card>
+
+            {/* Instructions */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Testing Instructions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                    <p>
+                        <strong>Pattern A (JS Bridge):</strong> Buttons call native methods directly through
+                        window.AndroidBridge. Watch for Toast messages and Dialogs.
+                    </p>
+                    <p>
+                        <strong>Pattern B (Deep Links):</strong> Buttons navigate to custom myapp:// URLs, intercepted
+                        by native shouldOverrideUrlLoading handler.
+                    </p>
+                    <p className="text-muted-foreground">
+                        Open Android Studio logcat with filter "MainActivity" or "AndroidBridge" to see detailed logs.
+                    </p>
+                </CardContent>
+            </Card>
         </div>
     );
 }

@@ -1,47 +1,101 @@
 package com.example.mastercarddesignstudiopoc
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.mastercarddesignstudiopoc.ui.theme.MastercardDesignStudioPocTheme
+import android.util.Log
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private lateinit var deepLinkHandler: DeepLinkHandler
+
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val WEBVIEW_URL = "http://10.0.2.2:3000"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            MastercardDesignStudioPocTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+
+        Log.d(TAG, "MainActivity onCreate")
+
+        // Initialize DeepLinkHandler
+        deepLinkHandler = DeepLinkHandler(this)
+
+        // Create and configure WebView
+        webView = WebView(this).apply {
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        configureWebView()
+        setContentView(webView)
+
+        // Handle back button press
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    finish()
                 }
+            }
+        })
+
+        // Load the web application
+        Log.d(TAG, "Loading URL: $WEBVIEW_URL")
+        webView.loadUrl(WEBVIEW_URL)
+    }
+
+    private fun configureWebView() {
+        // Configure WebView settings
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+
+            // Allow mixed content (HTTP on localhost during development)
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+            // Enable debugging in development
+            WebView.setWebContentsDebuggingEnabled(true)
+
+            Log.d(TAG, "WebView settings configured")
+        }
+
+        // Add JavaScript Interface for Pattern A
+        webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
+        Log.d(TAG, "AndroidBridge JavaScript interface added")
+
+        // Set custom WebViewClient to handle deep links (Pattern B)
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                Log.d(TAG, "shouldOverrideUrlLoading: $url")
+
+                // Check if this is a deep link
+                if (url.startsWith("myapp://")) {
+                    deepLinkHandler.handleDeepLink(url)
+                    return true // Prevent WebView from loading the URL
+                }
+
+                // Allow normal HTTP/HTTPS URLs to load
+                return false
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                Log.d(TAG, "Page finished loading: $url")
             }
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MastercardDesignStudioPocTheme {
-        Greeting("Android")
+    override fun onDestroy() {
+        super.onDestroy()
+        webView.destroy()
+        Log.d(TAG, "MainActivity destroyed")
     }
 }
