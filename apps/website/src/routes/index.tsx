@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -10,17 +11,6 @@ export const Route = createFileRoute("/")({
 });
 
 // TypeScript declaration for Android Bridge
-declare global {
-    interface Window {
-        AndroidBridge?: {
-            showToast: (message: string) => void;
-            showMessage: (title: string, message: string) => void;
-            performAction: (actionName: string, payload: string) => void;
-            getDeviceInfo: () => string;
-            logToNative: (message: string) => void;
-        };
-    }
-}
 
 function HomePage() {
     const [isAndroid, setIsAndroid] = useState(false);
@@ -54,7 +44,7 @@ function HomePage() {
             window.AndroidBridge.showToast("Hello from WebView!");
             window.AndroidBridge.logToNative("showToast button clicked");
         } else {
-            alert("AndroidBridge not available (not running in WebView)");
+            toast.error("AndroidBridge not available (not running in WebView)");
         }
     };
 
@@ -66,7 +56,7 @@ function HomePage() {
             );
             window.AndroidBridge.logToNative("showMessage button clicked");
         } else {
-            alert("AndroidBridge not available (not running in WebView)");
+            toast.error("AndroidBridge not available (not running in WebView)");
         }
     };
 
@@ -80,7 +70,7 @@ function HomePage() {
             window.AndroidBridge.performAction("shareCard", payload);
             window.AndroidBridge.logToNative(`performAction called with payload: ${payload}`);
         } else {
-            alert("AndroidBridge not available (not running in WebView)");
+            toast.error("AndroidBridge not available (not running in WebView)");
         }
     };
 
