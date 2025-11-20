@@ -16,10 +16,10 @@ Build a proof-of-concept Android shell application that hosts a digital card des
 
 | Component | Technology |
 |-----------|-----------|
-| Mobile Shell | Android Studio, Kotlin, API 28+ |
-| Web Application | TanStack Start (React + TypeScript) |
-| Backend | Hono + Bun |
-| Emulation | Android Studio Emulator (Pixel 8 equivalent, API 34+) |
+| Mobile Shell | Android Studio, Kotlin 2.2.0, API 28-36 |
+| Web Application | TanStack Start (React + TypeScript), Vite |
+| Backend | Hono + Bun (with createBunWebSocket adapter) |
+| Emulation | Android Studio Emulator (Pixel 8 equivalent, API 36) |
 
 ## System Architecture
 
@@ -100,8 +100,8 @@ backend/ (Hono + Bun)
 
 1. Create Hono + Bun server
 2. Set up endpoints for Pattern C HTTP communication
-3. Implement WebSocket support for native notifications
-4. Run on http://localhost:3000
+3. Implement WebSocket support using `createBunWebSocket()` from `hono/bun`
+4. Run on http://localhost:3001
 
 ### Phase 4: Android Shell Implementation
 
@@ -153,12 +153,13 @@ Key configuration:
 ```kotlin
 val settings = webView.settings.apply {
     javaScriptEnabled = true
-    mixedContentMode = WebSettings.MIXED_CONTENT_ALLOW_ALL // Allow http on localhost
+    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW // Allow http on localhost
     domStorageEnabled = true
-    databaseEnabled = true
+    // Note: databaseEnabled removed (WebSQL deprecated in Chromium)
 }
 
 webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
+webView.setWebContentsDebuggingEnabled(true) // Enable Chrome DevTools debugging
 webView.loadUrl("http://10.0.2.2:3000")
 ```
 
@@ -256,23 +257,46 @@ Endpoints for Pattern C:
 
 ### Android Manifest Requirements
 
-- Set minSdk: 28, targetSdk: 34+
+- Set minSdk: 28, targetSdk: 36, compileSdk: 36
 - Add internet permission: `<uses-permission android:name="android.permission.INTERNET" />`
-- Register deep link intent filter in MainActivity
-- Configure WebView provider if needed
+- Enable cleartext traffic for localhost: `android:usesCleartextTraffic="true"`
+- Register deep link intent filter in MainActivity:
+  ```xml
+  <intent-filter>
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
+      <data android:scheme="myapp" android:host="*" />
+  </intent-filter>
+  ```
 
 ## Dependencies
 
 ### Android (build.gradle.kts)
 
-```
-minSdk: 28
-targetSdk: 34
+```kotlin
+android {
+    compileSdk = 36
 
-implementation("com.squareup.okhttp3:okhttp:4.11.0")
-implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-implementation("com.google.code.gson:gson:2.10.1")
+    defaultConfig {
+        minSdk = 28
+        targetSdk = 36
+    }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+    }
+}
+
+dependencies {
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2") // Requires Kotlin 2.2.0+
+}
 ```
+
+**Version Compatibility Note:** OkHttp 5.3.2 requires Kotlin 2.2.0+. Ensure `libs.versions.toml` specifies `kotlin = "2.2.0"`.
 
 ### TanStack Start
 
@@ -285,9 +309,26 @@ vite@latest
 
 ### Hono + Bun
 
+```json
+{
+  "dependencies": {
+    "hono": "latest"
+  }
+}
 ```
-hono@latest
-ws@latest (for WebSocket support)
+
+**WebSocket Implementation:** Use Hono's Bun adapter via `createBunWebSocket()` from `hono/bun` instead of external `ws` library.
+
+**tsconfig.json Requirements:**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true
+  }
+}
 ```
 
 ## Running Development
@@ -295,8 +336,9 @@ ws@latest (for WebSocket support)
 1. **Terminal 1: TanStack Start dev server**
    ```bash
    cd apps/website
-   npm run dev  # runs on http://localhost:3000
+   bun run dev  # runs on http://localhost:3000
    ```
+   **Important:** Vite must use `--host` flag in `package.json` script to expose server on all network interfaces (required for emulator access via 10.0.2.2).
 
 2. **Terminal 2: Hono backend**
    ```bash
@@ -305,9 +347,10 @@ ws@latest (for WebSocket support)
    ```
 
 3. **Android Studio: Build and run APK on emulator**
-   - Configure emulator to Pixel 8 equivalent
+   - Configure emulator to Pixel 8 equivalent (API 36)
+   - Gradle sync (ensure Kotlin 2.2.0 and OkHttp 5.3.2 compatibility)
    - Build and deploy to emulator
-   - Use logcat for debugging
+   - Use logcat filters: `MainActivity`, `AndroidBridge`, `BackendClient` for debugging
 
 ## Success Criteria
 
@@ -326,3 +369,307 @@ ws@latest (for WebSocket support)
 - README.md with setup and running instructions
 - Architecture documentation
 - Code with comprehensive comments and documentation
+
+---
+
+## Key Implementation Decisions & Learnings
+
+### 1. Kotlin & Dependency Version Compatibility
+
+**Issue:** OkHttp 5.x requires Kotlin 2.2.0+. Using older Kotlin versions causes metadata incompatibility errors.
+
+**Solution:** Updated `libs.versions.toml` to specify `kotlin = "2.2.0"` and ensured all Kotlin-related plugins use this version.
+
+**Learning:** Always verify library compatibility matrices before adding dependencies. OkHttp major versions have strict Kotlin compiler requirements.
+
+### 2. Emulator Network Configuration
+
+**Issue:** Vite dev server binds to `127.0.0.1` by default, which is not accessible from the Android emulator.
+
+**Solution:** Added `--host` flag to Vite dev command to bind to `0.0.0.0` (all interfaces).
+
+**Learning:** Android emulator uses `10.0.2.2` as a special gateway to host machine's localhost. Ensure dev servers listen on all interfaces, not just loopback.
+
+### 3. WebView JavaScript Bridge Security
+
+**Implementation:** All JavaScript-callable methods in `AndroidBridge.kt` require `@JavaScriptInterface` annotation.
+
+**Security Note:** Only expose minimal, well-validated methods. Avoid exposing file system access or sensitive device APIs. All bridge methods should validate input and handle errors gracefully.
+
+### 4. WebSQL Deprecation
+
+**Issue:** `webView.settings.databaseEnabled = true` triggers deprecation warnings.
+
+**Reason:** WebSQL is deprecated by W3C and removed from Chromium. Modern web apps use IndexedDB or localStorage.
+
+**Solution:** Removed `databaseEnabled` setting entirely. Rely on `domStorageEnabled = true` for localStorage support.
+
+### 5. Hono WebSocket Implementation
+
+**Approach:** Used Hono's native Bun adapter via `createBunWebSocket()` instead of external `ws` library.
+
+**Benefits:**
+- Tight integration with Hono's routing and middleware
+- No additional dependencies
+- Type-safe WebSocket context (`WSContext<unknown>`)
+- Simpler deployment (single export with `fetch` and `websocket`)
+
+**Implementation Pattern:**
+```typescript
+import { createBunWebSocket } from "hono/bun";
+
+const { upgradeWebSocket, websocket } = createBunWebSocket();
+
+app.get("/ws", upgradeWebSocket((c) => ({
+    onOpen(_event, ws) { /* ... */ },
+    onMessage(event, ws) { /* ... */ },
+    onClose(_event, ws) { /* ... */ }
+})));
+
+export default { port: 3001, fetch: app.fetch, websocket };
+```
+
+### 6. Android Theme Compatibility
+
+**Issue:** App crashed with "You need to use a Theme.AppCompat theme" error.
+
+**Cause:** Android Studio template defaults to Material theme, but WebView-only apps should use AppCompat.
+
+**Solution:** Changed `themes.xml` parent from `android:Theme.Material.Light.NoActionBar` to `Theme.AppCompat.Light.NoActionBar`.
+
+**Learning:** Match theme to UI framework. Pure WebView apps don't need Material Design themes.
+
+### 7. Modern Kotlin Compiler Configuration
+
+**Deprecation:** `kotlinOptions.jvmTarget` is deprecated in Gradle 8+.
+
+**Migration:**
+```kotlin
+// Old (deprecated)
+kotlinOptions {
+    jvmTarget = "11"
+}
+
+// New (modern)
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+```
+
+### 8. TypeScript Configuration for Modern JavaScript
+
+**Issue:** `for (const client of connectedClients)` failed with "can only be iterated with --downlevelIteration or ES2015+".
+
+**Solution:** Set `target: "ES2022"` in `tsconfig.json` to enable native Set/Map iteration.
+
+**Learning:** Ensure TypeScript target matches runtime capabilities. Bun supports modern ES features, so ES2022 is appropriate.
+
+### 9. WebView Debugging
+
+**Best Practice:** Always enable WebView debugging in development:
+```kotlin
+WebView.setWebContentsDebuggingEnabled(true)
+```
+
+**Benefit:** Allows Chrome DevTools inspection via `chrome://inspect` on host machine. Essential for debugging JavaScript errors in WebView.
+
+### 10. Pattern Naming for Non-Technical Stakeholders
+
+**Original:** Patterns labeled as "Pattern A", "Pattern B", "Pattern C" in UI.
+
+**Improvement:** Renamed to descriptive names for clarity:
+- **JavaScript Interface Bridge** (direct native method calls)
+- **Deep Linking** (custom URI navigation)
+- **HTTP + WebSocket Communication** (asynchronous backend flow)
+
+**Learning:** Use domain-appropriate terminology for stakeholder demos. Avoid abstract labels.
+
+### 11. WebSocket Client Lifecycle Management
+
+**Critical Implementation:**
+- Connect WebSocket in `MainActivity.onCreate()`
+- Disconnect in `MainActivity.onDestroy()`
+- Register native client with backend after connection opens
+- Clean up OkHttp dispatcher on activity destruction
+
+**Error Handling:** Always remove failed clients from connection set to prevent memory leaks.
+
+### 12. Biome Linting Preferences
+
+**Ultracite Preset Rules:**
+- No increment/decrement operators (`i++` → `i += 1`)
+- All variables in closures must be explicitly passed as parameters
+- Prefer explicit error handling over silent failures
+
+**Learning:** Modern linters enforce patterns that prevent subtle bugs (e.g., automatic semicolon insertion issues with `++`).
+
+---
+
+## Production Readiness Considerations
+
+### Security Hardening
+
+1. **JavaScript Interface:**
+   - Audit all `@JavaScriptInterface` methods for injection vulnerabilities
+   - Validate all input from WebView (treat as untrusted)
+   - Use allowlist approach for permitted actions
+
+2. **Deep Link Validation:**
+   - Sanitize all URI parameters
+   - Implement signature verification for sensitive deep links
+   - Rate-limit deep link invocations
+
+3. **Network Security:**
+   - Replace cleartext HTTP with HTTPS for production
+   - Implement certificate pinning for backend communication
+   - Add network security config for production builds
+
+4. **WebView Hardening:**
+   - Disable file access: `setAllowFileAccess(false)`
+   - Disable universal access: `setAllowUniversalAccessFromFileURLs(false)`
+   - Implement Content Security Policy headers
+
+### Performance Optimization
+
+1. **WebSocket Connection Management:**
+   - Implement exponential backoff for reconnection
+   - Add connection timeout handling
+   - Pool connections if multiple WebViews are used
+
+2. **WebView Performance:**
+   - Enable hardware acceleration
+   - Implement progressive loading strategies
+   - Cache static assets locally
+
+3. **Backend Scalability:**
+   - Implement WebSocket connection limits
+   - Add Redis pub/sub for multi-instance backend scaling
+   - Use connection pooling for database access
+
+### Monitoring & Observability
+
+1. **Native Logging:**
+   - Implement structured logging (JSON format)
+   - Add correlation IDs for request tracing
+   - Use analytics SDK for user behavior tracking
+
+2. **Error Reporting:**
+   - Integrate Sentry or similar for crash reporting
+   - Log all WebSocket disconnections with reason codes
+   - Track JavaScript errors from WebView
+
+3. **Metrics:**
+   - WebSocket connection duration and reconnection rates
+   - JavaScript bridge method invocation frequency
+   - Deep link navigation success rates
+
+---
+
+## Architecture Decisions Record (ADR)
+
+### ADR-001: Use WebView Instead of Native UI
+
+**Status:** Accepted
+
+**Context:** Need to host web-based card design tool in mobile app.
+
+**Decision:** Use Android WebView to host TanStack Start application instead of building native UI.
+
+**Consequences:**
+- ✅ Single codebase for web and mobile card design logic
+- ✅ Rapid iteration without app store deployment
+- ⚠️ Requires robust JavaScript ↔ native communication
+- ⚠️ Dependent on WebView runtime version
+
+### ADR-002: Three Communication Patterns
+
+**Status:** Accepted
+
+**Context:** Demonstrate industry-standard approaches for banking stakeholders.
+
+**Decision:** Implement three distinct patterns (JS Bridge, Deep Linking, HTTP+WebSocket) in single demo.
+
+**Consequences:**
+- ✅ Shows architectural flexibility
+- ✅ Addresses different use cases (sync, navigation, async)
+- ⚠️ Increased complexity for demo app
+- ⚠️ Some patterns may be redundant for actual production use
+
+### ADR-003: Hono + Bun Over Express + Node
+
+**Status:** Accepted
+
+**Context:** Need backend for Pattern C demonstration.
+
+**Decision:** Use Hono framework with Bun runtime instead of Express + Node.js.
+
+**Rationale:**
+- Modern TypeScript-first framework
+- Native WebSocket support via Bun adapter
+- Excellent performance characteristics
+- Aligned with monorepo tech stack preferences
+
+**Consequences:**
+- ✅ Type-safe WebSocket implementation
+- ✅ Single export pattern simplifies deployment
+- ⚠️ Less mature ecosystem than Express
+- ⚠️ Requires Bun runtime (not standard Node.js)
+
+### ADR-004: Local Development Without Docker
+
+**Status:** Accepted
+
+**Context:** Need simple development setup for PoC.
+
+**Decision:** Run all services directly on host machine without Docker containerization.
+
+**Consequences:**
+- ✅ Simpler setup for developers
+- ✅ Faster iteration (no container rebuilds)
+- ⚠️ Manual port management required
+- ⚠️ Production deployment will need containerization
+
+---
+
+## Future Enhancements
+
+### Short Term
+
+1. **Add Unit Tests:**
+   - Jest tests for TanStack Start components
+   - Kotlin unit tests for AndroidBridge methods
+   - Hono endpoint tests
+
+2. **Enhanced Error Handling:**
+   - Retry logic for WebSocket reconnection
+   - Graceful degradation when backend unavailable
+   - User-friendly error messages in WebView
+
+3. **Documentation:**
+   - Sequence diagrams for each communication pattern
+   - Postman collection for backend API testing
+   - Video walkthrough for stakeholder presentation
+
+### Long Term
+
+1. **Multi-Instance Backend:**
+   - Redis pub/sub for WebSocket notifications across instances
+   - Load balancer configuration
+   - Horizontal scaling strategy
+
+2. **Offline Support:**
+   - Service Worker for web app offline capability
+   - Local SQLite database for native app state
+   - Sync mechanism when connectivity restored
+
+3. **Security Enhancements:**
+   - JWT-based authentication for WebSocket connections
+   - End-to-end encryption for sensitive card data
+   - Biometric authentication for native operations
+
+4. **Cross-Platform:**
+   - iOS WKWebView implementation
+   - Shared Kotlin Multiplatform Mobile (KMM) business logic
+   - Flutter wrapper for unified mobile codebase
