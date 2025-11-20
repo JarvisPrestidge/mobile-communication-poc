@@ -1,5 +1,5 @@
 {
-  "name": "my-turborepo",
+  "name": "mastercard-mobile-poc",
   "private": true,
   "scripts": {
     "build": "turbo run build",
