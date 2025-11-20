@@ -1,5 +1,5 @@
 # Project Overview
-[@.claude/memory/PROJECT_OVERVIEW.md](./.claude/memory/PROJECT_OVERVIEW.md) - Architecture, tech stack, design system, patterns
+[@./PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) - Architecture, tech stack, design system, patterns
 
 # Core Directive
 Extreme concision in all prose responses. Sacrifice grammar for brevity. This does not apply to source code generation.
