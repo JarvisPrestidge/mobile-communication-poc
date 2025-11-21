@@ -132,9 +132,12 @@ function HomePage() {
     return (
         <div className="container mx-auto min-h-svh p-6">
             <div className="mb-8">
-                <h1 className="mb-2 font-bold text-4xl">WebView Communication Demo</h1>
+                <h1 className="mb-4 text-center font-bold text-4xl">WebView Communication Demo</h1>
+                <h2 className="font-semibold text-lg">Demonstrating three patterns:</h2>
                 <p className="text-muted-foreground">
-                    Demonstrating three patterns: JavaScript Interface Bridge, Deep Linking, and HTTP + WebSocket
+                    • JavaScript Interface Bridge
+                    {<br />}• Deep Linking
+                    {<br />}• HTTP + WebSocket
                 </p>
             </div>
 
@@ -170,7 +173,7 @@ function HomePage() {
                             {Object.entries(deviceInfo).map(([key, value]) => (
                                 <div className="flex flex-col" key={key}>
                                     <dt className="font-medium text-muted-foreground">{key}</dt>
-                                    <dd className="font-mono">{String(value)}</dd>
+                                    <dd className="truncate font-mono">{String(value)}</dd>
                                 </div>
                             ))}
                         </dl>
