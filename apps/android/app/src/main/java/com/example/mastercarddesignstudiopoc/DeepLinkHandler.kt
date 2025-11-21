@@ -1,6 +1,7 @@
 package com.example.mastercarddesignstudiopoc
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -63,12 +64,13 @@ class DeepLinkHandler(private val context: Context) {
      * Route the action to the appropriate handler method.
      */
     private fun routeAction(action: String, params: Map<String, String>) {
-        (context as? MainActivity)?.runOnUiThread {
+        (context as? WebViewActivity)?.runOnUiThread {
             when (action) {
                 "navigate" -> handleNavigate(params)
                 "openCard" -> handleOpenCard(params)
                 "callNative" -> handleCallNative(params)
                 "showDialog" -> handleShowDialog(params)
+                "exit" -> handleExit()
                 else -> handleUnknownAction(action, params)
             }
         }
@@ -127,6 +129,18 @@ class DeepLinkHandler(private val context: Context) {
         Log.d(TAG, "Show dialog action - Title: $title, Message: $message")
 
         showDialog(title = title, message = message)
+    }
+
+    /**
+     * Handle exit deep link - navigates to CompletionActivity.
+     * Example: myapp://exit
+     */
+    private fun handleExit() {
+        Log.d(TAG, "Exit action - navigating to CompletionActivity")
+
+        val intent = Intent(context, CompletionActivity::class.java)
+        context.startActivity(intent)
+        (context as? WebViewActivity)?.finish()
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.example.mastercarddesignstudiopoc
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import android.webkit.JavascriptInterface
@@ -27,7 +28,7 @@ class AndroidBridge(private val context: Context) {
         Log.d(TAG, "showToast called with message: $message")
 
         // Toast must be shown on UI thread
-        (context as? MainActivity)?.runOnUiThread {
+        (context as? WebViewActivity)?.runOnUiThread {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
@@ -40,7 +41,7 @@ class AndroidBridge(private val context: Context) {
     fun showMessage(title: String, message: String) {
         Log.d(TAG, "showMessage called - Title: $title, Message: $message")
 
-        (context as? MainActivity)?.runOnUiThread {
+        (context as? WebViewActivity)?.runOnUiThread {
             AlertDialog.Builder(context)
                 .setTitle(title)
                 .setMessage(message)
@@ -62,7 +63,7 @@ class AndroidBridge(private val context: Context) {
     fun performAction(actionName: String, payload: String) {
         Log.d(TAG, "performAction called - Action: $actionName, Payload: $payload")
 
-        (context as? MainActivity)?.runOnUiThread {
+        (context as? WebViewActivity)?.runOnUiThread {
             when (actionName) {
                 "shareCard" -> {
                     // Example: Parse payload and perform sharing action
@@ -129,6 +130,22 @@ class AndroidBridge(private val context: Context) {
     @JavascriptInterface
     fun logToNative(message: String) {
         Log.d(TAG, "[WebView Log] $message")
+    }
+
+    /**
+     * Exit the WebView and navigate to CompletionActivity.
+     * This implements the JavaScript Bridge exit pattern.
+     * Called from JavaScript: window.AndroidBridge.exitWebView()
+     */
+    @JavascriptInterface
+    fun exitWebView() {
+        Log.d(TAG, "exitWebView called - navigating to CompletionActivity")
+
+        (context as? WebViewActivity)?.runOnUiThread {
+            val intent = Intent(context, CompletionActivity::class.java)
+            context.startActivity(intent)
+            (context as? WebViewActivity)?.finish()
+        }
     }
 
     /**

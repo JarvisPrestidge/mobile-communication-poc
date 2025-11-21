@@ -47,6 +47,15 @@ function HomePage() {
         }
     };
 
+    const handleExitViaJSBridge = () => {
+        if (window.AndroidBridge) {
+            window.AndroidBridge.logToNative("Exiting via JavaScript Bridge");
+            window.AndroidBridge.exitWebView();
+        } else {
+            toast.error("AndroidBridge not available (not running in WebView)");
+        }
+    };
+
     const handleShowDialog = () => {
         if (window.AndroidBridge) {
             window.AndroidBridge.showMessage(
@@ -90,6 +99,10 @@ function HomePage() {
         window.location.href = "myapp://showDialog?title=Deep Link Test&message=Hello from deep link!";
     };
 
+    const handleExitViaDeepLink = () => {
+        window.location.href = "myapp://exit";
+    };
+
     // HTTP + WebSocket handler
     const handleSendToBackend = async () => {
         try {
@@ -126,6 +139,29 @@ function HomePage() {
             setBackendResponse(`Error: ${errorMessage}`);
             toast.error(`Backend error: ${errorMessage}`);
             console.error("Backend request failed:", error);
+        }
+    };
+
+    const handleExitViaBackend = async () => {
+        try {
+            const response = await fetch("http://10.0.2.2:3001/api/studio/exit", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            toast.success(`Exit request sent! Notified ${data.notifiedClients} native clients.`);
+            window.AndroidBridge?.logToNative("Exit via HTTP+WebSocket pattern");
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            toast.error(`Backend error: ${errorMessage}`);
+            console.error("Exit request failed:", error);
         }
     };
 
@@ -211,6 +247,15 @@ function HomePage() {
                         Calls:{" "}
                         <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.performAction()</code>
                     </p>
+
+                    <div className="my-2 border-t" />
+
+                    <Button className="w-full" onClick={handleExitViaJSBridge} variant="destructive">
+                        Exit Studio (JavaScript Bridge)
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Calls: <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.exitWebView()</code>
+                    </p>
                 </CardContent>
             </Card>
 
@@ -257,6 +302,15 @@ function HomePage() {
                             myapp://showDialog?title=Deep Link Test&message=...
                         </code>
                     </p>
+
+                    <div className="my-2 border-t" />
+
+                    <Button className="w-full" onClick={handleExitViaDeepLink} variant="destructive">
+                        Exit Studio (Deep Link)
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Deep Link: <code className="rounded bg-muted px-1 py-0.5">myapp://exit</code>
+                    </p>
                 </CardContent>
             </Card>
 
@@ -284,6 +338,16 @@ function HomePage() {
                             </pre>
                         </div>
                     )}
+
+                    <div className="my-2 border-t" />
+
+                    <Button className="w-full" onClick={handleExitViaBackend} variant="destructive">
+                        Exit Studio (HTTP + WebSocket)
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Flow: WebView → POST /api/studio/exit → Backend sends exit_studio WebSocket event → Native app
+                        exits
+                    </p>
                 </CardContent>
             </Card>
 

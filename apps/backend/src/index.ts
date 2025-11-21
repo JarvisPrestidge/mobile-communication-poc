@@ -95,6 +95,45 @@ app.get(
     })
 );
 
+// HTTP endpoint for exiting the studio - notifies native app to navigate to completion
+app.post("/api/studio/exit", (c) => {
+    try {
+        console.log("Exit studio request received");
+
+        // Notify all connected native clients via WebSocket to exit
+        const notification = {
+            type: "exit_studio",
+            data: {
+                timestamp: new Date().toISOString(),
+            },
+        };
+
+        const notificationMessage = JSON.stringify(notification);
+        let notifiedCount = 0;
+
+        for (const client of connectedClients) {
+            try {
+                client.send(notificationMessage);
+                notifiedCount += 1;
+            } catch (error) {
+                console.error("Error sending to client:", error);
+                connectedClients.delete(client);
+            }
+        }
+
+        console.log(`Notified ${notifiedCount} connected clients to exit studio`);
+
+        // Return success response to web app
+        return c.json({
+            success: true,
+            notifiedClients: notifiedCount,
+        });
+    } catch (error) {
+        console.error("Error processing exit studio request:", error);
+        return c.json({ error: "Internal server error" }, 500);
+    }
+});
+
 // HTTP endpoint for Pattern C: Web app sends card design, backend notifies native app
 app.post("/api/card/design", async (c) => {
     try {

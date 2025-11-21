@@ -6,6 +6,7 @@ declare global {
             performAction: (actionName: string, payload: string) => void;
             getDeviceInfo: () => string;
             logToNative: (message: string) => void;
+            exitWebView: () => void;
         };
     }
 }

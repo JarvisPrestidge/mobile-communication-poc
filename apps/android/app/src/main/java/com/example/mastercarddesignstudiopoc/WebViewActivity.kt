@@ -7,20 +7,20 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : AppCompatActivity() {
+class WebViewActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var deepLinkHandler: DeepLinkHandler
     private lateinit var backendClient: BackendClient
 
     companion object {
-        private const val TAG = "MainActivity"
+        private const val TAG = "WebViewActivity"
         private const val WEBVIEW_URL = "http://10.0.2.2:3000"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.d(TAG, "MainActivity onCreate")
+        Log.d(TAG, "WebViewActivity onCreate")
 
         // Initialize DeepLinkHandler
         deepLinkHandler = DeepLinkHandler(this)
@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         backendClient.cleanup()
         webView.destroy()
-        Log.d(TAG, "MainActivity destroyed")
+        Log.d(TAG, "WebViewActivity destroyed")
     }
 
     /**

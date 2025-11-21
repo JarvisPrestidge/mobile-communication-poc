@@ -1,6 +1,7 @@
 package com.example.mastercarddesignstudiopoc
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -135,6 +136,12 @@ class BackendClient(private val context: Context) {
                     Log.d(TAG, "Pong received from backend")
                 }
 
+                "exit_studio" -> {
+                    // Backend notified us to exit the studio (Pattern C exit)
+                    Log.d(TAG, "Exit studio notification received")
+                    navigateToCompletion()
+                }
+
                 else -> {
                     Log.w(TAG, "Unknown message type: $type")
                 }
@@ -187,7 +194,7 @@ class BackendClient(private val context: Context) {
      * Show a toast message on the UI thread
      */
     private fun showToastOnUiThread(message: String) {
-        (context as? MainActivity)?.runOnUiThread {
+        (context as? WebViewActivity)?.runOnUiThread {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
@@ -196,7 +203,7 @@ class BackendClient(private val context: Context) {
      * Show a dialog on the UI thread
      */
     private fun showDialogOnUiThread(title: String, message: String) {
-        (context as? MainActivity)?.runOnUiThread {
+        (context as? WebViewActivity)?.runOnUiThread {
             AlertDialog.Builder(context)
                 .setTitle(title)
                 .setMessage(message)
@@ -205,6 +212,17 @@ class BackendClient(private val context: Context) {
                 }
                 .setCancelable(true)
                 .show()
+        }
+    }
+
+    /**
+     * Navigate to CompletionActivity (called when exit_studio message received)
+     */
+    private fun navigateToCompletion() {
+        (context as? WebViewActivity)?.runOnUiThread {
+            val intent = Intent(context, CompletionActivity::class.java)
+            context.startActivity(intent)
+            (context as? WebViewActivity)?.finish()
         }
     }
 
