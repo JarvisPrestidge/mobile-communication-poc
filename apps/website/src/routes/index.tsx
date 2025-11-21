@@ -227,21 +227,21 @@ function HomePage() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                     <Button className="w-full" onClick={handleShowToast} variant="default">
-                        Show Toast
+                        Show Native Toast
                     </Button>
                     <p className="text-muted-foreground text-xs">
                         Calls: <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.showToast()</code>
                     </p>
 
                     <Button className="w-full" onClick={handleShowDialog} variant="default">
-                        Show Dialog
+                        Show Native Dialog
                     </Button>
                     <p className="text-muted-foreground text-xs">
                         Calls: <code className="rounded bg-muted px-1 py-0.5">window.AndroidBridge.showMessage()</code>
                     </p>
 
                     <Button className="w-full" onClick={handlePerformAction} variant="default">
-                        Perform Action (Share Card)
+                        Call Native Method (Share Card)
                     </Button>
                     <p className="text-muted-foreground text-xs">
                         Calls:{" "}
@@ -268,38 +268,23 @@ function HomePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
-                    <Button className="w-full" onClick={handleNavigateDeepLink} variant="secondary">
-                        Navigate to Settings
-                    </Button>
-                    <p className="text-muted-foreground text-xs">
-                        Deep Link:{" "}
-                        <code className="rounded bg-muted px-1 py-0.5">myapp://navigate?screen=settings</code>
-                    </p>
-
-                    <Button className="w-full" onClick={handleOpenCardDeepLink} variant="secondary">
-                        Open Card #67890
-                    </Button>
-                    <p className="text-muted-foreground text-xs">
-                        Deep Link: <code className="rounded bg-muted px-1 py-0.5">myapp://openCard?cardId=67890</code>
-                    </p>
-
-                    <Button className="w-full" onClick={handleCallNativeDeepLink} variant="secondary">
-                        Call Native Method
-                    </Button>
-                    <p className="text-muted-foreground text-xs">
-                        Deep Link:{" "}
-                        <code className="rounded bg-muted px-1 py-0.5">
-                            myapp://callNative?method=shareCard&data=testValue
-                        </code>
-                    </p>
-
-                    <Button className="w-full" onClick={handleCustomDialogDeepLink} variant="secondary">
-                        Show Custom Dialog
+                    <Button className="w-full" onClick={handleCustomDialogDeepLink} variant="default">
+                        Show Native Dialog
                     </Button>
                     <p className="text-muted-foreground text-xs">
                         Deep Link:{" "}
                         <code className="rounded bg-muted px-1 py-0.5">
                             myapp://showDialog?title=Deep Link Test&message=...
+                        </code>
+                    </p>
+
+                    <Button className="w-full" onClick={handleCallNativeDeepLink} variant="default">
+                        Call Native Method (Share Card)
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                        Deep Link:{" "}
+                        <code className="rounded bg-muted px-1 py-0.5">
+                            myapp://callNative?method=shareCard&data=testValue
                         </code>
                     </p>
 
@@ -323,7 +308,7 @@ function HomePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
-                    <Button className="w-full" onClick={handleSendToBackend} variant="outline">
+                    <Button className="w-full" onClick={handleSendToBackend} variant="default">
                         Send Card Design to Backend
                     </Button>
                     <p className="text-muted-foreground text-xs">
